@@ -268,10 +268,12 @@ class MainNavView extends StatelessWidget {
                   Center(
                     child: OutlinedButton.icon(
                       onPressed: _takePhoto,
-                      icon: const Icon(
-                        Icons.camera_alt_outlined,
-                        color: Colors.white,
-                        size: 20,
+                      icon: Image.asset(
+                        'images/cam_hero.png',
+                        width: 20,
+                        height: 20,
+                        // 如果你的图片是单色图标且需要叠加白色，可以取消下面这行的注释：
+                        // color: Colors.white,
                       ),
                       label: const Text(
                         '开始拍摄',
@@ -306,13 +308,13 @@ class MainNavView extends StatelessWidget {
             Row(
               children: [
                 _buildSquareButton(
-                  icon: Icons.contact_phone_rounded,
+                  imagePath: 'images/zuozhe.png',
                   label: '联系作者',
                   onTap: _showContactDialog,
                 ),
                 const SizedBox(width: 12),
                 _buildSquareButton(
-                  icon: Icons.share_rounded,
+                  imagePath: 'images/share.png',
                   label: '分享朋友',
                   onTap: _shareApp,
                 ),
@@ -324,6 +326,7 @@ class MainNavView extends StatelessWidget {
             // 3. 相册修图卡片
             Card(
               elevation: 0,
+              clipBehavior: Clip.antiAlias,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -340,10 +343,10 @@ class MainNavView extends StatelessWidget {
                     color: const Color(0xFFEEF2FF),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.edit_square,
-                    color: Color(0xFF6366F1),
-                    size: 28,
+                  child: Image.asset(
+                    'images/edit_photo.png',
+                    width: 28,
+                    height: 28,
                   ),
                 ),
                 title: const Text(
@@ -398,7 +401,7 @@ class MainNavView extends StatelessWidget {
   }
 
   Widget _buildSquareButton({
-    required IconData icon,
+    required String imagePath,
     required String label,
     required VoidCallback onTap,
   }) {
@@ -419,7 +422,7 @@ class MainNavView extends StatelessWidget {
                   color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: Colors.black87, size: 24),
+                child: Image.asset(imagePath, width: 24, height: 24),
               ),
               const SizedBox(height: 8),
               Text(

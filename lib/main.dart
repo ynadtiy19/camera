@@ -18,6 +18,8 @@ void main() async {
     debugPrint = (String? message, {int? wrapWidth}) {};
   }
 
+  //测试git
+
   // 强制竖屏
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

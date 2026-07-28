@@ -50,6 +50,8 @@ class AppLoginService {
     // 7. 标记为已登录状态
     AuthStateManager.instance.onLoginSuccess();
 
+    // VisitTrackingService.instance.startTracking();
+
     return loginData;
   }
 }

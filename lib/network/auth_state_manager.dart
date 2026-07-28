@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 import '../main/main_nav_view.dart';
+import '../services/visit_tracking_service.dart';
 import 'secure_storage_manager.dart';
 
 /// 用户的三种模式：游客、已登录、登录过期
@@ -40,6 +41,8 @@ class AuthStateManager {
 
   /// Token 彻底过期或刷新失败时调用 (由于登录页可选，直接清空状态并平滑重定向回主页)
   Future<void> onTokenExpired() async {
+    VisitTrackingService.instance.stopTracking();
+
     authModeNotifier.value = AuthMode.expired;
     await SecureStorageManager.instance.clearTokens();
 
@@ -50,6 +53,8 @@ class AuthStateManager {
 
   /// 用户主动退出登录
   Future<void> logout() async {
+    VisitTrackingService.instance.stopTracking();
+
     await SecureStorageManager.instance.clearTokens();
     authModeNotifier.value = AuthMode.guest;
 

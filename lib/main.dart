@@ -1,3 +1,4 @@
+import 'package:camera/services/visit_tracking_service.dart';
 import 'package:camera/theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -75,11 +76,18 @@ class MyApp extends StatelessWidget {
       home: const SplashView(),
       builder: (context, child) {
         final toastChild = FToastBuilder()(context, child);
-        return MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: const TextScaler.linear(1.0)),
-          child: toastChild,
+
+        // 🌟 包裹全局 Listener 监听全屏触摸点按
+        return Listener(
+          onPointerDown: (_) {
+            VisitTrackingService.instance.reportOnUserInteraction();
+          },
+          child: MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.0)),
+            child: toastChild,
+          ),
         );
       },
     );

@@ -563,7 +563,7 @@ class PhotoEditorController extends GetxController {
       final File tempFile = File(tempPath);
       await tempFile.writeAsBytes(bytes);
 
-      await Share.shareXFiles([XFile(tempPath)], text: '匿名水印相机 - 照片分享');
+      await Share.shareXFiles([XFile(tempPath)], text: '匿答水印相机 - 照片分享');
     } catch (_) {
       ToastUtil.showError('处理成片失败');
     } finally {

@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../network/api_response.dart';
+import '../network/http_client.dart';
 import '../utils/toast_util.dart';
 import '../views/photo_editor/photo_editor_controller.dart';
 import '../views/photo_editor/photo_editor_view.dart';
@@ -22,7 +24,7 @@ void openPhotoEditor(String localImagePath) {
   );
 }
 
-/// 匿名水印相机 - 单页面应用主界面
+/// 匿答水印相机 - 单页面应用主界面
 class MainNavView extends StatelessWidget {
   const MainNavView({super.key});
 
@@ -104,109 +106,182 @@ class MainNavView extends StatelessWidget {
     }
   }
 
+  /// 动态异步获取微信号并展示“联系作者”对话框
   void _showContactDialog() {
+    String kfWx = '加载中...';
+    bool isLoading = true;
+
     Get.dialog(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '联系作者',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      StatefulBuilder(
+        builder: (context, setState) {
+          // 异步请求微信号接口
+          Future<void> fetchKfWx() async {
+            try {
+              // 请求 GET https://ca.wxshot.cn/wx/v1/api/echo
+              final ApiResponse<dynamic> response = await HttpClient.instance
+                  .get('/v1/api/echo');
+
+              if (response.isSuccess && response.datas != null) {
+                final data = response.datas;
+                if (data is Map &&
+                    data.containsKey('kfWx') &&
+                    data['kfWx'] != null) {
+                  final String fetchedWx = data['kfWx'].toString();
+                  if (fetchedWx.isNotEmpty) {
+                    setState(() {
+                      kfWx = fetchedWx;
+                      isLoading = false;
+                    });
+                    return;
+                  }
+                }
+              }
+
+              // 如果接口未返回 kfWx，使用默认值兜底
+              setState(() {
+                kfWx = '获取出错';
+                isLoading = false;
+              });
+            } catch (e) {
+              debugPrint("【联系作者】获取微信号失败，使用默认值: $e");
+              setState(() {
+                kfWx = '获取出错';
+                isLoading = false;
+              });
+            }
+          }
+
+          // 弹窗首次渲染时自动发起 API 请求
+          if (isLoading && kfWx == '加载中...') {
+            fetchKfWx();
+          }
+
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                '微信号',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0FDF4),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Center(
-                  child: Text(
-                    'e5824e',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF10B981),
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Clipboard.setData(const ClipboardData(text: 'e5824e'));
-                        Get.back();
-                        ToastUtil.showSuccess('内容已复制');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                      ),
-                      child: const Text(
-                        '复制微信号',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                  const Text(
+                    '联系作者',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Get.back(),
-                      style: TextButton.styleFrom(
-                        backgroundColor: const Color(0xFFF3F4F6),
-                        foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
+                  const SizedBox(height: 12),
+                  const Text(
+                    '微信号',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  // 微信号动态展示区域
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF10B981),
+                              ),
+                            )
+                          : Text(
+                              kfWx,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF10B981),
+                                letterSpacing: 1,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: isLoading || kfWx == '加载中...'
+                              ? null
+                              : () {
+                                  Clipboard.setData(ClipboardData(text: kfWx));
+                                  Get.back();
+                                  ToastUtil.showSuccess('内容已复制');
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: const Text(
+                            '复制微信号',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                      child: const Text('关闭', style: TextStyle(fontSize: 15)),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Get.back(),
+                          style: TextButton.styleFrom(
+                            backgroundColor: const Color(0xFFF3F4F6),
+                            foregroundColor: Colors.black87,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: const Text(
+                            '关闭',
+                            style: TextStyle(fontSize: 15),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 
   void _shareApp() {
-    Share.share('推荐一个好用的匿名水印相机 App，支持滤镜修图与智能水印！');
+    Share.share(
+      '推荐一个好用的匿答水印相机 App，支持滤镜修图与智能水印！点击下载体验：https://camera.wtminiapp.com',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('匿名水印相机'),
+        title: const Text('匿答水印相机'),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,

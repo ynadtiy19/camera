@@ -49,7 +49,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: '匿名水印相机',
+      title: '匿答水印相机',
       debugShowCheckedModeBanner: false,
       locale: const Locale('zh', 'CN'),
       fallbackLocale: const Locale('zh', 'CN'),

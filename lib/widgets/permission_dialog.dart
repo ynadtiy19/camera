@@ -63,7 +63,7 @@ class PermissionDialog extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     const Text(
-                      '匿名水印相机 申请',
+                      '匿答水印相机 申请',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.black87,

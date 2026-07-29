@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>匿名水印相机</string>
+	<string>匿答水印相机</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>匿名水印相机</string>
+	<string>匿答水印相机</string>
 
 	<!-- 🌟 1. 摄像头权限（相机拍摄必填！之前缺少此项导致 iOS 打开相机闪退崩溃） -->
     <key>NSCameraUsageDescription</key>

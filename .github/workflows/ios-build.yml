@@ -25,11 +25,11 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.2' # 改为你项目使用的 Flutter 版本
+          flutter-version: '3.44.2' # 匹配你的 Flutter 版本
           channel: 'stable'
           cache: true
 
-      # 4. 解密并安装同事提供的证书与描述文件
+      # 4. 解密并安装证书与描述文件
       - name: Install Apple Certificate and Provisioning Profile
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
@@ -41,7 +41,7 @@ jobs:
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
           
-          # Base64 解密回二进制文件 (兼容性更好)
+          # Base64 解密回二进制文件
           echo "$BUILD_CERTIFICATE_BASE64" | base64 -d > $CERTIFICATE_PATH
           echo "$BUILD_PROVISION_PROFILE_BASE64" | base64 -d > $PP_PATH
           
@@ -54,11 +54,15 @@ jobs:
           security import $CERTIFICATE_PATH -k $KEYCHAIN_PATH -P "$P12_PASSWORD" -A -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           
+          # 【核心修复】：把创建的钥匙串设为系统默认并加到搜索列表中，供 Xcode 提取！
+          security list-keychains -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | tr -d '"')
+          security default-keychain -s $KEYCHAIN_PATH
+
           # 安装描述文件
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
 
-      # 5. 安装项目依赖（Flutter 会在 build ipa 步骤中自动处理 iOS Pods）
+      # 5. 安装项目依赖
       - name: Install Dependencies
         run: flutter pub get
 

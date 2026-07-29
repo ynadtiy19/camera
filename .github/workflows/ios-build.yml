@@ -41,9 +41,9 @@ jobs:
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
           
-          # Base64 解密回二进制文件
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+          # Base64 解密回二进制文件 (兼容性更好)
+          echo "$BUILD_CERTIFICATE_BASE64" | base64 -d > $CERTIFICATE_PATH
+          echo "$BUILD_PROVISION_PROFILE_BASE64" | base64 -d > $PP_PATH
           
           # 创建云端临时 KeyChain
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH

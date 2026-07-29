@@ -58,12 +58,9 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
 
-      # 5. 安装 Pod 依赖
-      - name: Install CocoaPods
-        run: |
-          flutter pub get
-          cd ios
-          pod install
+      # 5. 安装项目依赖（Flutter 会在 build ipa 步骤中自动处理 iOS Pods）
+      - name: Install Dependencies
+        run: flutter pub get
 
       # 6. 执行 Flutter 打包 IPA 命令
       - name: Build IPA

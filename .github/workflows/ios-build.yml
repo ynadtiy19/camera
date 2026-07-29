@@ -54,7 +54,7 @@ jobs:
           security import $CERTIFICATE_PATH -k $KEYCHAIN_PATH -P "$P12_PASSWORD" -A -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           
-          # 【核心修复】：把创建的钥匙串设为系统默认并加到搜索列表中，供 Xcode 提取！
+          # 钥匙串加入系统默认搜索列表
           security list-keychains -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | tr -d '"')
           security default-keychain -s $KEYCHAIN_PATH
 
@@ -66,13 +66,19 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      # 6. 执行 Flutter 打包 IPA 命令
+      # 6. 【核心修改】编译归档并使用苹果原生 xcodebuild 导出 IPA
       - name: Build IPA
         run: |
-          flutter build ipa --release \
-            --export-options-plist=ios/ExportOptions.plist \
+          # 1) 编译 iOS Archive (加上 --no-codesign 绕过开发证书检查)
+          flutter build ipa --release --no-codesign \
             --obfuscate \
             --split-debug-info=build/app/outputs/symbols
+
+          # 2) 使用苹果原生工具拿着发布证书和 ExportOptions 导出正规 IPA
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist ios/ExportOptions.plist
 
       # 7. 上传 IPA 文件至 GitHub Artifacts 供下载
       - name: Upload IPA Artifact

@@ -71,6 +71,7 @@ jobs:
         run: |
           # 1) 编译 iOS Archive (加上 --no-codesign 绕过开发证书检查)
           flutter build ipa --release --no-codesign \
+            --build-number=${{ github.run_number }}
             --obfuscate \
             --split-debug-info=build/app/outputs/symbols
 

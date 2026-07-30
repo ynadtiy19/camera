@@ -19,7 +19,7 @@ class HttpClient {
   late Dio _dio;
 
   // 统一指向您的 Zeabur 线上部署后端服务
-  static const String _baseUrl = 'https://ca.wxshot.cn/wx';
+  static const String _baseUrl = 'https://ca.wxshot.cn';
   static const Duration _defaultConnectTimeout = Duration(seconds: 15);
   static const Duration _defaultReceiveTimeout = Duration(seconds: 15);
   static const Duration _defaultSendTimeout = Duration(seconds: 15);

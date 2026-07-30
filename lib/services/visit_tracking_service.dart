@@ -54,7 +54,7 @@ class VisitTrackingService {
   Future<void> sendVisitPing() async {
     try {
       // 请求会通过 HttpClient 拦截器自动携带最新的 Authorization Header
-      await HttpClient.instance.post('/v1/api/visit', data: {});
+      await HttpClient.instance.post('/wx/v1/api/visit', data: {});
       debugPrint("【埋点服务】访问埋点上报成功");
     } catch (e) {
       debugPrint("【埋点服务】上报失败或网络异常: $e");

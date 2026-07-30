@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../network/api_response.dart';
 import '../network/http_client.dart';
+import '../utils/app_web_view_page.dart';
 import '../utils/toast_util.dart';
 import '../views/photo_editor/photo_editor_controller.dart';
 import '../views/photo_editor/photo_editor_view.dart';
@@ -119,7 +120,7 @@ class MainNavView extends StatelessWidget {
             try {
               // 请求 GET https://ca.wxshot.cn/wx/v1/api/echo
               final ApiResponse<dynamic> response = await HttpClient.instance
-                  .get('/v1/api/echo');
+                  .get('/wx/v1/api/echo');
 
               if (response.isSuccess && response.datas != null) {
                 final data = response.datas;
@@ -272,6 +273,8 @@ class MainNavView extends StatelessWidget {
   }
 
   void _shareApp() {
+    // WeatherService.instance.executeAndExportSummary(latitude: null, longitude: null);
+
     Share.share(
       '推荐一个好用的匿答水印相机 App，支持滤镜修图与智能水印！点击下载体验：https://camera.wtminiapp.com',
     );
@@ -461,12 +464,91 @@ class MainNavView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildTipItem('拍照页支持九宫格构图线与延时自拍'),
+                    _buildTipItem('拍照页支持前后置拍摄与延时自拍'),
                     _buildTipItem('编辑页可叠加复古、胶片等 8 款滤镜'),
-                    _buildTipItem('水印可调颜色、位置和透明度'),
-                    _buildTipItem('成片可直接分享给微信好友'),
+                    _buildTipItem('水印自定义选择时间，经纬度，海拔，设备型号等'),
+                    _buildTipItem('成片可直接分享给微信，QQ好友'),
                   ],
                 ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // 5. 底部版权与协议跳转区域
+            Padding(
+              padding: const EdgeInsets.only(bottom: 24, top: 8),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 用户协议
+                      GestureDetector(
+                        onTap: () {
+                          Get.to(
+                            () => const AppWebViewPage(
+                              title: '用户协议',
+                              url:
+                                  'https://camera.wtminiapp.com/user_agreement.html',
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          '用户协议',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          '|',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                      ),
+                      // 隐私政策
+                      GestureDetector(
+                        onTap: () {
+                          Get.to(
+                            () => const AppWebViewPage(
+                              title: '隐私政策',
+                              url:
+                                  'https://camera.wtminiapp.com/privacy_policy.html',
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          '隐私政策',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Copyright © 2026 匿答水印相机 All Rights Reserved',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF94A3B8),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

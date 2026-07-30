@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../services/content_safety_service.dart';
+import '../../services/weather_service.dart';
 import '../../utils/toast_util.dart';
 import '../../widgets/permission_dialog.dart';
 import 'widgets/custom_watermark_dialog.dart';
@@ -34,7 +35,7 @@ class PhotoEditorController extends GetxController {
   final RxString activeTab = 'filter'.obs;
   final RxString filterKey = 'original'.obs;
 
-  // 使用 RxMap 配合 refresh() 保证强响应性
+  // 使用 RxMap 配合 refresh() 保证全局高亮控制灵敏
   final RxMap<String, bool> wmFields = <String, bool>{
     'time': false,
     'geo': false,
@@ -50,6 +51,11 @@ class PhotoEditorController extends GetxController {
   String deviceModelStr = '';
   String timeStr = '';
   String dateWeekStr = '';
+
+  // 从 API 接口获取的实时数据
+  String weatherText = '';
+  String locationName = '';
+  double? apiElevation;
 
   final List<FilterModel> filters = const [
     FilterModel(
@@ -250,6 +256,9 @@ class PhotoEditorController extends GetxController {
       imagePath = '';
     }
     _initTimeAndDevice();
+
+    // 进入编辑页面自动初始化 API 数据并默认高亮选中的水印项
+    _autoInitDataAndFetchApi();
   }
 
   Future<void> _initTimeAndDevice() async {
@@ -275,6 +284,52 @@ class PhotoEditorController extends GetxController {
     }
   }
 
+  /// 进入编辑页自动调用定位与海拔/天气 API
+  Future<void> _autoInitDataAndFetchApi() async {
+    // 1. 自动请求定位 (首次未授权会自动弹出合规提示框)
+    final hasLocation = await _ensureLocation();
+
+    if (hasLocation && position != null) {
+      // 2. 自动把“时间”、“经纬度”、“海拔”、“设备型号”全部自动勾选并高亮！
+      wmFields['time'] = true;
+      wmFields['geo'] = true;
+      wmFields['altitude'] = true;
+      wmFields['device'] = true;
+      wmFields.refresh();
+
+      try {
+        final lat = position!.latitude;
+        final lng = position!.longitude;
+
+        // 🌟 3. 发起真实海拔 API 请求，并将海拔赋值给 apiElevation
+        final elevationRes = await WeatherService.instance.getElevation(
+          lat,
+          lng,
+        );
+        if (elevationRes is Map && elevationRes['elevation'] != null) {
+          apiElevation = double.tryParse(elevationRes['elevation'].toString());
+        }
+
+        // 4. 发起天气预报 API 请求
+        final forecastSummary = await WeatherService.instance
+            .executeAndExportSummary(latitude: lat, longitude: lng);
+
+        if (forecastSummary.isNotEmpty) {
+          weatherText = forecastSummary;
+        }
+
+        wmFields.refresh(); // 刷新水印图层，实时更新上屏
+      } catch (e) {
+        debugPrint("【PhotoEditorController】海拔/天气 API 请求异常: $e");
+      }
+    } else {
+      // 无 GPS 坐标时，默认自动高亮启用“时间”与“设备型号”
+      wmFields['time'] = true;
+      wmFields['device'] = true;
+      wmFields.refresh();
+    }
+  }
+
   void switchTab(String tab) {
     activeTab.value = tab;
   }
@@ -283,7 +338,7 @@ class PhotoEditorController extends GetxController {
     filterKey.value = key;
   }
 
-  /// 切换水印字段状态（开启/取消）
+  /// 切换水印字段状态（开启/取消高亮）
   Future<void> toggleWatermarkField(String key) async {
     final curState = wmFields[key] ?? false;
     final newState = !curState;
@@ -293,7 +348,6 @@ class PhotoEditorController extends GetxController {
         CustomWatermarkDialog(initialText: customText.value),
       );
       if (result != null && result.trim().isNotEmpty) {
-        // 调用合规服务对输入的自定义文本进行检测
         final pass = await ContentSafetyService.instance.checkTextContent(
           result.trim(),
         );
@@ -316,10 +370,10 @@ class PhotoEditorController extends GetxController {
     }
 
     wmFields[key] = newState;
-    wmFields.refresh(); // 触发 UI 实时更新高亮
+    wmFields.refresh(); // 触发 UI 高亮与取消高亮
   }
 
-  /// 请求定位权限（仅在初次未授权时弹出预说明弹窗）
+  /// 请求定位权限
   Future<bool> _ensureLocation() async {
     if (position != null) return true;
 
@@ -332,7 +386,6 @@ class PhotoEditorController extends GetxController {
 
       LocationPermission permission = await Geolocator.checkPermission();
 
-      // 仅当权限尚未获取时，才弹出权限预说明对话框
       if (permission == LocationPermission.denied) {
         final allow = await PermissionDialog.show(
           title: '获取你的精确地理位置',
@@ -349,14 +402,12 @@ class PhotoEditorController extends GetxController {
         return false;
       }
 
-      // 1. 优先尝试读取最后已知位置（秒级响应，避免无信号卡顿）
       Position? lastPos = await Geolocator.getLastKnownPosition();
       if (lastPos != null) {
         position = lastPos;
         return true;
       }
 
-      // 2. 增加 5 秒超时时间，使用中等精度获取精准 GPS
       position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.medium,
@@ -424,25 +475,33 @@ class PhotoEditorController extends GetxController {
     String formatLng(double lng) =>
         '${lng >= 0 ? "东经" : "西经"} ${lng.abs().toStringAsFixed(4)}°';
 
+    // 时间与实时天气（拆分为独立行，避免一行太长溢出图像边缘）
     if (wmFields['time'] == true) {
       lines.add('$dateWeekStr  $timeStr');
+      if (weatherText.isNotEmpty) {
+        lines.add(weatherText);
+      }
     }
 
+    // 经纬度
     if (wmFields['geo'] == true && position != null) {
       lines.add(
         '${formatLat(position!.latitude)}  ${formatLng(position!.longitude)}',
       );
     }
 
+    // 海拔与设备型号
     final List<String> tail = [];
-    if (wmFields['altitude'] == true && position != null) {
-      tail.add('海拔 ${position!.altitude.toStringAsFixed(1)}m');
+    if (wmFields['altitude'] == true) {
+      double displayAlt = apiElevation ?? (position?.altitude ?? 0.0);
+      tail.add('海拔 ${displayAlt.toStringAsFixed(1)}m');
     }
     if (wmFields['device'] == true && deviceModelStr.isNotEmpty) {
       tail.add(deviceModelStr);
     }
     if (tail.isNotEmpty) lines.add(tail.join('  '));
 
+    // 自定义文字
     if (wmFields['custom'] == true && customText.value.isNotEmpty) {
       lines.add(customText.value);
     }
@@ -455,23 +514,14 @@ class PhotoEditorController extends GetxController {
     final double lineGap = baseFontSize * 0.45;
     final double margin = minSide * 0.05;
 
-    double totalHeight = headFontSize;
-    for (int i = 1; i < lines.length; i++) {
-      totalHeight += lineGap + baseFontSize;
-    }
-
     final double barWidth = (baseFontSize * 0.16).clamp(4.0, 16.0);
     final double x = margin;
-    final double y = h - margin - totalHeight;
-
-    // 绘制左侧橙条 (#FFB03A)
-    final Paint barPaint = Paint()
-      ..color = const Color(0xFFFFB03A)
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(Rect.fromLTWH(x, y, barWidth, totalHeight), barPaint);
-
-    double currentY = y;
     final double textX = x + barWidth + (baseFontSize * 0.4);
+    final double maxTextWidth = w - textX - margin;
+
+    // 先计算所有渲染行预估的总高度（精准支持多行折行高度计算）
+    double totalHeight = 0.0;
+    List<TextPainter> textPainters = [];
 
     for (int i = 0; i < lines.length; i++) {
       final isHead = i == 0;
@@ -497,20 +547,38 @@ class PhotoEditorController extends GetxController {
         textDirection: ui.TextDirection.ltr,
       );
 
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(textX, currentY));
-      currentY += fontSize + lineGap;
+      textPainter.layout(maxWidth: maxTextWidth);
+      textPainters.add(textPainter);
+
+      totalHeight += textPainter.height;
+      if (i < lines.length - 1) {
+        totalHeight += lineGap;
+      }
+    }
+
+    final double y = h - margin - totalHeight;
+
+    // 绘制左侧橙条 (#FFB03A)
+    final Paint barPaint = Paint()
+      ..color = const Color(0xFFFFB03A)
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(Rect.fromLTWH(x, y, barWidth, totalHeight), barPaint);
+
+    double currentY = y;
+    for (int i = 0; i < textPainters.length; i++) {
+      final tp = textPainters[i];
+      tp.paint(canvas, Offset(textX, currentY));
+      currentY += tp.height + lineGap;
     }
   }
 
-  /// 保存到相册（仅在首次未授权时弹出预说明弹窗）
+  /// 保存到相册
   Future<void> saveToGallery() async {
     if (isSaving.value) return;
 
     try {
       bool hasAccess = await Gal.hasAccess();
 
-      // 仅在未授权时，才弹出预说明对话框
       if (!hasAccess) {
         final allow = await PermissionDialog.show(
           title: '保存图片或视频到你的相册',

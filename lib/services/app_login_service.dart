@@ -34,7 +34,7 @@ class AppLoginService {
 
     // 4. 发起网络请求 (POST /v1/api/app/login)
     final ApiResponse<dynamic> rawResponse = await HttpClient.instance.post(
-      '/v1/api/app/login',
+      '/wx/v1/api/app/login',
       data: requestBody.toJson(),
     );
 

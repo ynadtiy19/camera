@@ -73,6 +73,7 @@ class PhotoEditorView extends GetView<PhotoEditorController> {
                             Positioned(
                               left: 12,
                               bottom: 12,
+                              right: 12, // 限制右侧范围，保障在各种手机屏幕上均不超界
                               child: _buildRealtimeWatermarkOverlay(),
                             ),
                           ],
@@ -192,27 +193,40 @@ class PhotoEditorView extends GetView<PhotoEditorController> {
     );
   }
 
+  /// 实时水印层渲染 (包含右侧自动换行与布局保护)
   Widget _buildRealtimeWatermarkOverlay() {
     return Obx(() {
       final List<String> lines = [];
       final wm = controller.wmFields;
 
+      // 时间与实时天气 (拆分独立行，避免长行超出屏幕)
       if (wm['time'] == true) {
         lines.add('${controller.dateWeekStr}  ${controller.timeStr}');
+        if (controller.weatherText.isNotEmpty) {
+          lines.add(controller.weatherText);
+        }
       }
+
+      // 经纬度
       if (wm['geo'] == true && controller.position != null) {
         lines.add(
           '北纬 ${controller.position!.latitude.toStringAsFixed(4)}°  东经 ${controller.position!.longitude.toStringAsFixed(4)}°',
         );
       }
+
+      // 海拔与设备型号
       final List<String> tail = [];
-      if (wm['altitude'] == true && controller.position != null) {
-        tail.add('海拔 ${controller.position!.altitude.toStringAsFixed(1)}m');
+      if (wm['altitude'] == true) {
+        double displayAlt =
+            controller.apiElevation ?? (controller.position?.altitude ?? 0.0);
+        tail.add('海拔 ${displayAlt.toStringAsFixed(1)}m');
       }
       if (wm['device'] == true && controller.deviceModelStr.isNotEmpty) {
         tail.add(controller.deviceModelStr);
       }
       if (tail.isNotEmpty) lines.add(tail.join('  '));
+
+      // 自定义文字
       if (wm['custom'] == true && controller.customText.value.isNotEmpty) {
         lines.add(controller.customText.value);
       }
@@ -229,21 +243,24 @@ class PhotoEditorView extends GetView<PhotoEditorController> {
             color: const Color(0xFFFFB03A),
             margin: const EdgeInsets.only(right: 6, top: 2),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: lines.map((line) {
-              return Text(
-                line,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'monospace',
-                  shadows: [Shadow(color: Colors.black, blurRadius: 3)],
-                ),
-              );
-            }).toList(),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: lines.map((line) {
+                return Text(
+                  line,
+                  softWrap: true,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
+                    shadows: [Shadow(color: Colors.black, blurRadius: 3)],
+                  ),
+                );
+              }).toList(),
+            ),
           ),
         ],
       );
@@ -276,7 +293,7 @@ class PhotoEditorView extends GetView<PhotoEditorController> {
     );
   }
 
-  /// 滤镜选择器（每一项增加 Obx 监听选中高亮）
+  /// 滤镜选择器
   Widget _buildFilterSelector() {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
@@ -318,7 +335,7 @@ class PhotoEditorView extends GetView<PhotoEditorController> {
     );
   }
 
-  /// 水印选择器（每一项增加 Obx 监听开关与取消高亮）
+  /// 水印选项卡（带自动与手动取消高亮）
   Widget _buildWatermarkSelector() {
     final fields = [
       {'key': 'time', 'name': '时间'},

@@ -35,6 +35,9 @@ class PhotoEditorController extends GetxController {
   final RxString activeTab = 'filter'.obs;
   final RxString filterKey = 'original'.obs;
 
+  // 图片物理宽高比 (用于解决 UI 错位与黑边漂浮问题)
+  final RxDouble imageAspectRatio = (4.0 / 3.0).obs;
+
   // 使用 RxMap 配合 refresh() 保证全局高亮控制灵敏
   final RxMap<String, bool> wmFields = <String, bool>{
     'time': false,
@@ -256,9 +259,26 @@ class PhotoEditorController extends GetxController {
       imagePath = '';
     }
     _initTimeAndDevice();
-
-    // 进入编辑页面自动初始化 API 数据并默认高亮选中的水印项
+    _loadImageAspectRatio();
     _autoInitDataAndFetchApi();
+  }
+
+  /// 🌟 自动解析原图尺寸并计算物理宽高比
+  Future<void> _loadImageAspectRatio() async {
+    if (imagePath.isEmpty || !File(imagePath).existsSync()) return;
+    try {
+      final File file = File(imagePath);
+      final Uint8List bytes = await file.readAsBytes();
+      final ui.Codec codec = await ui.instantiateImageCodec(bytes);
+      final ui.FrameInfo frameInfo = await codec.getNextFrame();
+      final double w = frameInfo.image.width.toDouble();
+      final double h = frameInfo.image.height.toDouble();
+      if (h > 0) {
+        imageAspectRatio.value = w / h;
+      }
+    } catch (e) {
+      debugPrint("【PhotoEditorController】读取图片宽高比失败: $e");
+    }
   }
 
   Future<void> _initTimeAndDevice() async {
@@ -286,11 +306,9 @@ class PhotoEditorController extends GetxController {
 
   /// 进入编辑页自动调用定位与海拔/天气 API
   Future<void> _autoInitDataAndFetchApi() async {
-    // 1. 自动请求定位 (首次未授权会自动弹出合规提示框)
     final hasLocation = await _ensureLocation();
 
     if (hasLocation && position != null) {
-      // 2. 自动把“时间”、“经纬度”、“海拔”、“设备型号”全部自动勾选并高亮！
       wmFields['time'] = true;
       wmFields['geo'] = true;
       wmFields['altitude'] = true;
@@ -301,7 +319,6 @@ class PhotoEditorController extends GetxController {
         final lat = position!.latitude;
         final lng = position!.longitude;
 
-        // 🌟 3. 发起真实海拔 API 请求，并将海拔赋值给 apiElevation
         final elevationRes = await WeatherService.instance.getElevation(
           lat,
           lng,
@@ -310,7 +327,6 @@ class PhotoEditorController extends GetxController {
           apiElevation = double.tryParse(elevationRes['elevation'].toString());
         }
 
-        // 4. 发起天气预报 API 请求
         final forecastSummary = await WeatherService.instance
             .executeAndExportSummary(latitude: lat, longitude: lng);
 
@@ -318,12 +334,11 @@ class PhotoEditorController extends GetxController {
           weatherText = forecastSummary;
         }
 
-        wmFields.refresh(); // 刷新水印图层，实时更新上屏
+        wmFields.refresh();
       } catch (e) {
         debugPrint("【PhotoEditorController】海拔/天气 API 请求异常: $e");
       }
     } else {
-      // 无 GPS 坐标时，默认自动高亮启用“时间”与“设备型号”
       wmFields['time'] = true;
       wmFields['device'] = true;
       wmFields.refresh();
@@ -338,7 +353,7 @@ class PhotoEditorController extends GetxController {
     filterKey.value = key;
   }
 
-  /// 切换水印字段状态（开启/取消高亮）
+  /// 切换水印字段状态
   Future<void> toggleWatermarkField(String key) async {
     final curState = wmFields[key] ?? false;
     final newState = !curState;
@@ -370,7 +385,7 @@ class PhotoEditorController extends GetxController {
     }
 
     wmFields[key] = newState;
-    wmFields.refresh(); // 触发 UI 高亮与取消高亮
+    wmFields.refresh();
   }
 
   /// 请求定位权限
@@ -452,7 +467,7 @@ class PhotoEditorController extends GetxController {
       ..colorFilter = ColorFilter.matrix(activeMatrix);
     canvas.drawImage(originImage, Offset.zero, filterPaint);
 
-    // 🌟 2. 绘制正中央固定半透明“匿答水印相机”推广/防伪 Logo
+    // 2. 绘制正中央固定半透明“匿答水印相机”推广 Logo
     _drawCenterLogo(canvas, width, height);
 
     // 3. 绘制左下角排版水印
@@ -470,17 +485,15 @@ class PhotoEditorController extends GetxController {
     return byteData?.buffer.asUint8List();
   }
 
-  /// 🌟 离屏渲染：在成片正中央绘制半透明“匿答水印相机”Logo
   void _drawCenterLogo(Canvas canvas, double w, double h) {
     final double minSide = w < h ? w : h;
-    // 根据导出成片的分辨率按比例计算字号
     final double logoFontSize = (minSide * 0.075).clamp(32.0, 180.0);
 
     final TextPainter tp = TextPainter(
       text: TextSpan(
         text: '匿答水印相机',
         style: TextStyle(
-          color: Colors.white.withOpacity(0.28), // 与预览层保持一致的半透明质感
+          color: Colors.white.withOpacity(0.28),
           fontSize: logoFontSize,
           fontWeight: FontWeight.bold,
           fontFamily: 'monospace',
@@ -498,7 +511,6 @@ class PhotoEditorController extends GetxController {
     );
 
     tp.layout();
-    // 精准计算居中坐标 (X, Y)
     final double x = (w - tp.width) / 2;
     final double y = (h - tp.height) / 2;
     tp.paint(canvas, Offset(x, y));
@@ -512,7 +524,6 @@ class PhotoEditorController extends GetxController {
     String formatLng(double lng) =>
         '${lng >= 0 ? "东经" : "西经"} ${lng.abs().toStringAsFixed(4)}°';
 
-    // 时间与实时天气（拆分为独立行，避免一行太长溢出图像边缘）
     if (wmFields['time'] == true) {
       lines.add('$dateWeekStr  $timeStr');
       if (weatherText.isNotEmpty) {
@@ -520,14 +531,12 @@ class PhotoEditorController extends GetxController {
       }
     }
 
-    // 经纬度
     if (wmFields['geo'] == true && position != null) {
       lines.add(
         '${formatLat(position!.latitude)}  ${formatLng(position!.longitude)}',
       );
     }
 
-    // 海拔与设备型号
     final List<String> tail = [];
     if (wmFields['altitude'] == true) {
       double displayAlt = apiElevation ?? (position?.altitude ?? 0.0);
@@ -538,7 +547,6 @@ class PhotoEditorController extends GetxController {
     }
     if (tail.isNotEmpty) lines.add(tail.join('  '));
 
-    // 自定义文字
     if (wmFields['custom'] == true && customText.value.isNotEmpty) {
       lines.add(customText.value);
     }
@@ -556,7 +564,6 @@ class PhotoEditorController extends GetxController {
     final double textX = x + barWidth + (baseFontSize * 0.4);
     final double maxTextWidth = w - textX - margin;
 
-    // 先计算所有渲染行预估的总高度（精准支持多行折行高度计算）
     double totalHeight = 0.0;
     List<TextPainter> textPainters = [];
 
@@ -595,7 +602,6 @@ class PhotoEditorController extends GetxController {
 
     final double y = h - margin - totalHeight;
 
-    // 绘制左侧橙条 (#FFB03A)
     final Paint barPaint = Paint()
       ..color = const Color(0xFFFFB03A)
       ..style = PaintingStyle.fill;

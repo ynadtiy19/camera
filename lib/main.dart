@@ -72,6 +72,7 @@ class MyApp extends StatelessWidget {
           selectionHandleColor: AppTheme.primary,
         ),
       ),
+
       // 首次加载进入水印相机启动页
       home: const SplashView(),
       builder: (context, child) {

@@ -70,6 +70,30 @@ class PhotoEditorView extends GetView<PhotoEditorController> {
                               File(controller.imagePath),
                               fit: BoxFit.contain,
                             ),
+
+                            // 🌟 核心新增：正中央固定的半透明“匿答水印相机”品牌/防伪 Logo 水印
+                            Center(
+                              child: IgnorePointer(
+                                child: Text(
+                                  '匿答水印相机',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.28),
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 4,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.35),
+                                        offset: const Offset(1, 1),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // 左下角排版水印层
                             Positioned(
                               left: 12,
                               bottom: 12,

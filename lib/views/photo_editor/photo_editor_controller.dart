@@ -430,7 +430,7 @@ class PhotoEditorController extends GetxController {
     return item.matrix;
   }
 
-  /// 绘制成片（确保高分辨率与水印完整导出）
+  /// 绘制成片（确保高分辨率与中央 Logo + 左下角水印完整导出）
   Future<Uint8List?> renderExportBytes() async {
     if (imagePath.isEmpty || !File(imagePath).existsSync()) return null;
 
@@ -452,7 +452,10 @@ class PhotoEditorController extends GetxController {
       ..colorFilter = ColorFilter.matrix(activeMatrix);
     canvas.drawImage(originImage, Offset.zero, filterPaint);
 
-    // 2. 绘制水印
+    // 🌟 2. 绘制正中央固定半透明“匿答水印相机”推广/防伪 Logo
+    _drawCenterLogo(canvas, width, height);
+
+    // 3. 绘制左下角排版水印
     _drawWatermarkStamps(canvas, width, height);
 
     final ui.Picture picture = recorder.endRecording();
@@ -465,6 +468,40 @@ class PhotoEditorController extends GetxController {
     );
 
     return byteData?.buffer.asUint8List();
+  }
+
+  /// 🌟 离屏渲染：在成片正中央绘制半透明“匿答水印相机”Logo
+  void _drawCenterLogo(Canvas canvas, double w, double h) {
+    final double minSide = w < h ? w : h;
+    // 根据导出成片的分辨率按比例计算字号
+    final double logoFontSize = (minSide * 0.075).clamp(32.0, 180.0);
+
+    final TextPainter tp = TextPainter(
+      text: TextSpan(
+        text: '匿答水印相机',
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.28), // 与预览层保持一致的半透明质感
+          fontSize: logoFontSize,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'monospace',
+          letterSpacing: logoFontSize * 0.15,
+          shadows: [
+            Shadow(
+              color: Colors.black.withOpacity(0.35),
+              offset: Offset(minSide * 0.003, minSide * 0.003),
+              blurRadius: minSide * 0.008,
+            ),
+          ],
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    );
+
+    tp.layout();
+    // 精准计算居中坐标 (X, Y)
+    final double x = (w - tp.width) / 2;
+    final double y = (h - tp.height) / 2;
+    tp.paint(canvas, Offset(x, y));
   }
 
   void _drawWatermarkStamps(Canvas canvas, double w, double h) {

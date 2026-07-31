@@ -12,12 +12,15 @@
     <!-- Android 13 (API 33) 及以上相册读取权限 -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <!-- Android 9 (API 28) 及以下存储写入权限 -->
+    <!-- Android 12 (API 32) 及以下存储读取权限 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- 🌟 gal 必需：Android 10 (API 29) 及以下写入相册权限 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <application
         android:label="匿答水印相机"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:requestLegacyExternalStorage="true"> <!-- 🌟 gal 必需：Android 10 保存图片必要的传统存储兼容开关 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

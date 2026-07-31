@@ -184,7 +184,7 @@ class PhotoEditorView extends GetView<PhotoEditorController> {
                   const SizedBox(height: 22),
 
                   // 底部精细按键操作行
-                  _buildActionButtons(),
+                  _buildActionButtons(context),
 
                   const SizedBox(height: 20),
                 ],
@@ -462,7 +462,7 @@ class PhotoEditorView extends GetView<PhotoEditorController> {
   }
 
   /// 4. 底部两大精细操作按键 ('分 享' 与 '保存到相册')
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -474,7 +474,7 @@ class PhotoEditorView extends GetView<PhotoEditorController> {
               borderRadius: BorderRadius.circular(30),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
-                onTap: () => controller.shareImage(),
+                onTap: () => controller.shareImage(context),
                 splashColor: Colors.white.withOpacity(0.12),
                 highlightColor: Colors.white.withOpacity(0.05),
                 child: Container(

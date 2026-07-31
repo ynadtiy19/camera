@@ -388,17 +388,181 @@ class PhotoEditorController extends GetxController {
     wmFields.refresh();
   }
 
-  /// 请求定位权限
+  /// 🌟 高质感引导用户跳转系统设置页的弹窗小部件
+  Future<bool> _showAppSettingsDialog({
+    required String title,
+    required String content,
+    required String confirmText,
+  }) async {
+    final result = await Get.dialog<bool>(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 320),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 24,
+                spreadRadius: 0,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 1. 顶部暖橙色柔光渐变图标徽章
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFFFFF3E0),
+                      const Color(0xFFFFE0B2).withOpacity(0.6),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orange.withOpacity(0.18),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.location_off_rounded,
+                    color: Color(0xFFFF9200), // 温暖主亮橙
+                    size: 34,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // 2. 主标题
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1D1E2C),
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // 3. 正文描述（舒适行高与配色）
+              Text(
+                content,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  color: Color(0xFF6E7191),
+                  height: 1.5,
+                  letterSpacing: 0.1,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // 4. 底部双弹按钮行
+              Row(
+                children: [
+                  // 取消按键
+                  Expanded(
+                    child: SizedBox(
+                      height: 46,
+                      child: TextButton(
+                        onPressed: () => Get.back(result: false),
+                        style: TextButton.styleFrom(
+                          backgroundColor: const Color(0xFFF3F4F8),
+                          foregroundColor: const Color(0xFF6E7191),
+                          elevation: 0,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(23),
+                          ),
+                        ),
+                        child: const Text(
+                          '取消',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // 主确认/去设置按键（带紫色紫光阴影）
+                  Expanded(
+                    child: SizedBox(
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: () => Get.back(result: true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8B5CF6),
+                          foregroundColor: Colors.white,
+                          elevation: 4,
+                          shadowColor: const Color(0xFF8B5CF6).withOpacity(0.4),
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(23),
+                          ),
+                        ),
+                        child: Text(
+                          confirmText,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+    return result ?? false;
+  }
+
+  /// 请求定位权限（深度适配小米 HyperOS / MIUI 无谷歌服务环境）
   Future<bool> _ensureLocation() async {
     if (position != null) return true;
 
     try {
+      // 1. 检查手机系统的 GPS 总开关（下拉控制中心里的位置信息）
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        ToastUtil.showError('请开启手机 GPS 定位服务后重试');
+        final openGps = await _showAppSettingsDialog(
+          title: '手机 GPS 总开关未开启',
+          content: '你已为应用开启权限，但手机系统的【位置信息/GPS】总开关尚未开启。请在下拉控制中心或设置中开启。',
+          confirmText: '去开启 GPS 开关',
+        );
+        if (openGps) {
+          await Geolocator.openLocationSettings(); // 跳转至系统 GPS 开关页
+        }
         return false;
       }
 
+      // 2. 检查应用权限
       LocationPermission permission = await Geolocator.checkPermission();
 
       if (permission == LocationPermission.denied) {
@@ -409,29 +573,52 @@ class PhotoEditorController extends GetxController {
         if (!allow) return false;
 
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return false;
       }
 
-      if (permission == LocationPermission.deniedForever) {
-        ToastUtil.showError('定位权限已被永久拒绝，请在手机系统设置中开启权限');
+      // 3. 处理权限被拒绝/不再弹窗的情况
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied) {
+        final openSettings = await _showAppSettingsDialog(
+          title: '需要定位权限',
+          content: '检测到应用定位权限未生效。请在小米系统“权限管理”中将“获取位置信息”设置为【仅在使用中允许】。',
+          confirmText: '去系统设置开启',
+        );
+        if (openSettings) {
+          await Geolocator.openAppSettings(); // 跳转至小米应用权限设置页
+        }
         return false;
       }
 
+      // 4. 优先读取最后一次已知位置（秒级响应，避免无信号死等）
       Position? lastPos = await Geolocator.getLastKnownPosition();
       if (lastPos != null) {
         position = lastPos;
         return true;
       }
 
-      position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
+      // 🌟 5. 核心突破：国产手机（小米/华为/OPPO/vivo）强制指定 forceLocationManager: true
+      // 避开谷歌服务死锁，直接调用 Android 原生 LocationManager
+      late LocationSettings locationSettings;
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        locationSettings = AndroidSettings(
+          accuracy: LocationAccuracy.medium,
+          forceLocationManager: true, // 强制绕过谷歌 GMS 服务！
+          timeLimit: const Duration(seconds: 5),
+        );
+      } else {
+        locationSettings = const LocationSettings(
           accuracy: LocationAccuracy.medium,
           timeLimit: Duration(seconds: 5),
-        ),
+        );
+      }
+
+      position = await Geolocator.getCurrentPosition(
+        locationSettings: locationSettings,
       );
       return true;
     } catch (e) {
-      debugPrint("【定位异常】: $e");
+      debugPrint("【小米定位异常】: $e");
       ToastUtil.show('暂未获取到 GPS 信号，已开启基础位置标注');
       return false;
     }
@@ -655,8 +842,8 @@ class PhotoEditorController extends GetxController {
     }
   }
 
-  /// 分享到第三方应用
-  Future<void> shareImage() async {
+  /// 分享到第三方应用（适合原始分享图片的方法）
+  Future<void> shareImage(BuildContext context) async {
     if (isSaving.value) return;
     isSaving.value = true;
 
@@ -674,7 +861,20 @@ class PhotoEditorController extends GetxController {
       final File tempFile = File(tempPath);
       await tempFile.writeAsBytes(bytes);
 
-      await Share.shareXFiles([XFile(tempPath)], text: '匿答水印相机 - 照片分享');
+      // 1. 获取按钮位置锚点（适配 iPad / iOS 弹窗）
+      final box = context.findRenderObject() as RenderBox?;
+      final sharePositionOrigin = box != null
+          ? box.localToGlobal(Offset.zero) & box.size
+          : null;
+
+      // 2. 替换为最新版的 SharePlus.instance.share(ShareParams)
+      await SharePlus.instance.share(
+        ShareParams(
+          text: '匿答水印相机 - 照片分享',
+          files: [XFile(tempPath)],
+          sharePositionOrigin: sharePositionOrigin,
+        ),
+      );
     } catch (_) {
       ToastUtil.showError('处理成片失败');
     } finally {

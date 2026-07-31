@@ -272,11 +272,20 @@ class MainNavView extends StatelessWidget {
     );
   }
 
-  void _shareApp() {
-    // WeatherService.instance.executeAndExportSummary(latitude: null, longitude: null);
+  void _shareApp(BuildContext context) async {
+    // 获取按钮物理位置，适配 iPad Popover 弹窗
+    final box = context.findRenderObject() as RenderBox?;
+    final sharePositionOrigin = box != null
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
 
-    Share.share(
-      '推荐一个好用的匿答水印相机 App，支持滤镜修图与智能水印！点击下载体验：https://camera.wtminiapp.com',
+    // 使用最新的 ShareParams 构造对象
+    await SharePlus.instance.share(
+      ShareParams(
+        text:
+            '推荐一个好用的匿答水印相机 App，支持滤镜修图与智能水印！点击下载体验：https://camera.wtminiapp.com',
+        sharePositionOrigin: sharePositionOrigin, // 必传：防止 iPad 弹窗失效或位置偏移
+      ),
     );
   }
 
@@ -394,7 +403,7 @@ class MainNavView extends StatelessWidget {
                 _buildSquareButton(
                   imagePath: 'images/share.png',
                   label: '分享朋友',
-                  onTap: _shareApp,
+                  onTap: () => _shareApp(context),
                 ),
               ],
             ),

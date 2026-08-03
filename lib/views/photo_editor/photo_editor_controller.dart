@@ -580,7 +580,7 @@ class PhotoEditorController extends GetxController {
           permission == LocationPermission.denied) {
         final openSettings = await _showAppSettingsDialog(
           title: '需要定位权限',
-          content: '检测到应用定位权限未生效。请在小米系统“权限管理”中将“获取位置信息”设置为【仅在使用中允许】。',
+          content: '检测到应用定位权限未生效。请在系统“权限管理”中将“获取位置信息”设置为【仅在使用中允许】。',
           confirmText: '去系统设置开启',
         );
         if (openSettings) {
